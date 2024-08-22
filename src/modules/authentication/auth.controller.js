@@ -5,7 +5,7 @@ import bcrypt from 'bcrypt'
 import { AppError } from "../../middleWare/AppError.js";
 
 const signUp =catchError(async(req,res,next)=>{
-    const userName = `${req.body.firstName}${req.body.lastName}`;
+    const userName = `${req.body.firstName} ${req.body.lastName}`;
     const user = new User({
         ...req.body,
         userName
@@ -18,13 +18,21 @@ const signUp =catchError(async(req,res,next)=>{
 
 const signIn = catchError(async(req,res,next)=>{
     // find user with Email 
-        const user = await User.findOne({email : req.body.email});
-        if (!user || !bcrypt.compareSync(req.body.password , user.password)){
+    const user = await User.findOne({
+        $or: [
+            { email: req.body.email },
+            { mobileNumber: req.body.mobileNumber },
+            { recoveryEmail: req.body.recoveryEmail },
+        ],
+    });        
+    if (!user || !bcrypt.compareSync(req.body.password , user.password)){
             return next(new AppError('Incorrect Email Or Password' ,409))
-        }
+    }
         // make JWt
-        let token =jwt.sign({userId : user._id , role : user.role} ,'Moataz')
-        res.status(201).json({message : "Success Login" , token});
+    let token =jwt.sign({userId : user._id , role : user.role} ,'Moataz')
+    await User.updateOne({ email: req.body.email }, { status: "online" });
+
+    res.status(201).json({message : "Success Login" , token});
 });
     
 
